@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='../Figs/',
                       echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
@@ -23,6 +23,17 @@ To be added
 # Preprocess
 
 ## Library Require
+
+The following packages are required to run the code.  
+
+1.  install.packages ("caret", dependencies=TRUE)
+
+2.  install.packages ("randomForest")
+
+3.  install.packages ("e1071", dependencies=TRUE)
+
+4. install.packages("pRF", dependencies=TRUE)
+
 
 ```{r, echo=TRUE}
 library(caret)
@@ -70,7 +81,7 @@ Examine the data in both training and testing dataset, the observations are:
 
 0.  All data points are numeric, except for the column labeled "classe", which contains "A", "B", "C", "D", "E"
 
-1.  Many columns contains *mostly* NA's; such variables should be removed as part of data cleaning, as the variables will not contribute to 
+1.  Many columns contains *mostly* NA's; such variables should be removed as part of data cleaning, as the variables do not contribute to building of the model.  Apply is.na()
 
 ```{r, echo=TRUE}
 
@@ -107,16 +118,16 @@ tsCleanDf.wk <- tsCleanDf.wk[,8:dim(tsCleanDf.wk)[2]-1]
 
 # Random Forest Model and Prediction
 
-Building a model using Random Forest algorithm
+Building a model using Random Forest algorithm.  Choosing a random number to for set.seed(); this is done so that the result will be same through different execution. 
+
 
 ```{r, echo=TRUE}
+set.seed(20150619)
 
 classe.rf.model <- randomForest (as.factor(trCleanDf.wk$classe) ~ .
                                  , trCleanDf.wk
-                                 , ntree=100
-                                 #, proximity=TRUE
-                                 #, keep.forest = FALSE
-                                 ## , importance=TRUE
+                                 , ntree=10
+                                 , importance=TRUE
                                  , norm.votes=FALSE
                                 )
 ```
@@ -147,29 +158,139 @@ write_prediction(pred);
 
 # Validation
 
+In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error; ^[2]^ instead **out of bag (OOB)** is used to get a running unbiased estimate of the classification error as trees are added to the forest.  Random forest is a classification algorithm that combines both _boostrapping_ and _random subspace method_.  Each tree is constructed using a different bootstrap sample from the original data.   About one-third of the cases are left out (*out of bag*) of the bootstrap sample and not used in the construction of the k-_th_ tree.  At the end of k-_th_ run, out-of-bag estimate for the generalization error is the error rate of the out-of-bag classifier.  Using OOB estimate removes the need for for set asside test set, or cross validation.^[3]^  
+
 ## Estimate of Error of the Classifier and Confusion Matrix
 
-```{r, echo=TRUE, fig.cap='Random Forest Model - Error rate vs the number of trees'}
+```{r, echo=TRUE}
 classe.rf.model
 
-plot(classe.rf.model)
+
+plot(classe.rf.model
+     , log="y"
+     , main="Fitting training data with random forest (10 trees)")
+legend("top", cex =0.5, legend=colnames(classe.rf.model$err.rate)
+       , lty=c(1,2,3,4,5,6), col=c(1,2,3,4,5,6), horiz=T)
 
 ```
+
+Let's see if the error improved with more trees:
+
+```{r, echo=TRUE}
+
+classe.rf.model <- randomForest (as.factor(trCleanDf.wk$classe) ~ .
+                                 , trCleanDf.wk
+                                 , ntree=1000
+                                 #, importance=TRUE
+                                 , norm.votes=FALSE
+                                )
+
+plot(classe.rf.model
+     ,log="y"
+     ,main="Fitting training data with random forest (1,000 trees)")
+
+legend("top", cex =0.5
+       , legend=colnames(classe.rf.model$err.rate)
+       , lty=c(1,2,3,4,5,6), col=c(1,2,3,4,5,6), horiz=T)
+
+```
+
+From the above figure, after about 900 trees error rates for all classes are level out.   From next subsequent fitting, 900 trees will be used. 
 
 ## Importance of Variables
 
 ```{r, echo=TRUE}
-varImpPlot(classe.rf.model, class="A", main="Class = A Importance");
 
-varImpPlot(classe.rf.model, class="B", main="Class = B Importance");
+classe.rf.model <- randomForest (as.factor(trCleanDf.wk$classe) ~ .
+                                 , trCleanDf.wk
+                                 , ntree= 900
+                                 , importance=TRUE
+                                 , proximity=TRUE
+                                 , norm.votes=FALSE
+                                )
 
-varImpPlot(classe.rf.model, class="C", main="Class = C Importance");
+## Class A
+classA <- data.frame(importance(classe.rf.model, type=1, class="A"))
+t1 <- data.frame(varName=rownames(classA), meanDecreaseAccuracy=round(classA[,"A"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
+pA<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
+  ggtitle("Class A: Variable importance that decreases Accuracy")+
+  geom_point(colour="red2", shape=17) +
+  coord_flip() 
 
-varImpPlot(classe.rf.model, class="D", main="Class = D Importance");
 
-varImpPlot(classe.rf.model, class="E", main="Class = E Importance");
+
+classB <- data.frame(importance(classe.rf.model, type=1, class="B"))
+t1 <- data.frame(varName=rownames(classB), meanDecreaseAccuracy=round(classB[,"B"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
+pB<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
+  ggtitle("Class B: Variable importance that decreases Accuracy")+
+  geom_point(colour="lawngreen", shape=17) +
+  coord_flip()
+
+
+classC <- data.frame(importance(classe.rf.model, type=1, class="C"))
+t1 <- data.frame(varName=rownames(classC), meanDecreaseAccuracy=round(classC[,"C"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
+pC<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
+  ggtitle("Class C: Variable importance that decreases Accuracy")+
+  geom_point(colour="royalblue3", shape=17) +
+  coord_flip()
+
+
+classD <- data.frame(importance(classe.rf.model, type=1, class="D"))
+t1 <- data.frame(varName=rownames(classD), meanDecreaseAccuracy=round(classD[,"D"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
+pD<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
+  ggtitle("Class D: Variable importance that decreases Accuracy")+
+  geom_point(colour="cyan2", shape=17) +
+  coord_flip()
+
+classE <- data.frame(importance(classe.rf.model, type=1, class="E"))
+t1 <- data.frame(varName=rownames(classE), meanDecreaseAccuracy=round(classE[,"E"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
+pE<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
+  ggtitle("Class E: Variable importance that decreases Accuracy")+
+  geom_point(colour="hotpink2", shape=17) +
+  coord_flip()
+pA
+
+pB
+
+pC
+
+pD
+
+pE
+
+
+
 ```
 
+## Partial importance
+
+```{r, echo=TRUE}
+
+#classe.rf.importance <- importance(classe.rf.model);
+#classe.rf.impvar  <- rownames(classe.rf.importance)[order(classe.rf.importance[, 1], decreasing=TRUE)]
+
+## codes does not end
+##op <- par(mfrow=c(2, 2))
+## for (i in seq_along(classe.rf.impvar)) {
+##for (i in 1:4) {
+##  partialPlot(x=classe.rf.model
+##              , pred.data= trCleanDf.wk
+##              , x.var=classe.rf.impvar[i]
+##              , which.class="A"
+##              , plot= TRUE
+##              , xlab=classe.rf.impvar[i]
+##              ,main=paste("Partial Dependence on", classe.rf.impvar[i], " for class A")
+##  )
+##}
+##par(op)
+
+
+```
 # Conclusion
 
 # References
@@ -178,6 +299,10 @@ varImpPlot(classe.rf.model, class="E", main="Class = E Importance");
 
 Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3ac1yTLFa
 
+2.  www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm
+
+3.  Breiman, L. [1996b] Out-of-bag estimation,
+ftp.stat.berkeley.edu/pub/users/breiman/OOBestimation.ps
 
 
 
