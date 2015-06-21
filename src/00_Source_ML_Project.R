@@ -77,22 +77,7 @@ legend("top", cex =0.5, legend=colnames(classe.rf.model$err.rate)
 classe.rf.importance <- importance(classe.rf.model);
 classe.rf.impvar  <- rownames(classe.rf.importance)[order(classe.rf.importance[, 1], decreasing=TRUE)]
 
-## codes does not end
-##op <- par(mfrow=c(5, 2))
-## for (i in seq_along(classe.rf.impvar)) {
-##for (i in 1:10) {
-##  partialPlot(x=classe.rf.model
-##              , pred.data= trCleanDf.wk
-##              , x.var=classe.rf.impvar[i]
-##              , which.class="A"
-##              , plot= TRUE
-##              , xlab=classe.rf.impvar[i]
-##              , ylim=c(30, 70)
-##              ,main=paste("Partial Dependence on", classe.rf.impvar[i], " for class A")
-##  )
-##}
-##par(op)
-## end
+
 
 ## variable importance
 ## Class A
@@ -107,6 +92,7 @@ classe.rf.model <- randomForest (as.factor(trCleanDf.wk$classe) ~ .
 ## Class A
 classA <- data.frame(importance(classe.rf.model, type=1, class="A"))
 t1 <- data.frame(varName=rownames(classA), meanDecreaseAccuracy=round(classA[,"A"],1))
+t2 <- t1[order(-t1$meanDecreaseAccuracy, t1$varName),]
 sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
 pA<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
   ggtitle("Class A: Variable importance that decreases Accuracy")+
@@ -117,6 +103,7 @@ pA<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
 
 classB <- data.frame(importance(classe.rf.model, type=1, class="B"))
 t1 <- data.frame(varName=rownames(classB), meanDecreaseAccuracy=round(classB[,"B"],1))
+t2 <- t1[order(-t1$meanDecreaseAccuracy, t1$varName),]
 sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
 pB<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
   ggtitle("Class B: Variable importance that decreases Accuracy")+
@@ -126,6 +113,7 @@ pB<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
 
 classC <- data.frame(importance(classe.rf.model, type=1, class="C"))
 t1 <- data.frame(varName=rownames(classC), meanDecreaseAccuracy=round(classC[,"C"],1))
+t2 <- t1[order(-t1$meanDecreaseAccuracy, t1$varName),]
 sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
 pC<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
   ggtitle("Class C: Variable importance that decreases Accuracy")+
@@ -135,6 +123,7 @@ pC<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
 
 classD <- data.frame(importance(classe.rf.model, type=1, class="D"))
 t1 <- data.frame(varName=rownames(classD), meanDecreaseAccuracy=round(classD[,"D"],1))
+t2 <- t1[order(-t1$meanDecreaseAccuracy, t1$varName),]
 sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
 pD<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
   ggtitle("Class D: Variable importance that decreases Accuracy")+
@@ -143,6 +132,7 @@ pD<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
 
 classE <- data.frame(importance(classe.rf.model, type=1, class="E"))
 t1 <- data.frame(varName=rownames(classE), meanDecreaseAccuracy=round(classE[,"E"],1))
+t2 <- t1[order(-t1$meanDecreaseAccuracy, t1$varName),]
 sortData <- transform(t1, varName=reorder(varName, -meanDecreaseAccuracy) ) 
 pE<- ggplot(sortData, aes( as.factor(varName), meanDecreaseAccuracy))+
   ggtitle("Class E: Variable importance that decreases Accuracy")+
@@ -159,5 +149,24 @@ pC
 pD
 
 pE
+
+varImp <- data.frame(importance(classe.rf.model, type=2))
+t1 <- data.frame(varName=rownames(varImp), meanDecreaseGini=round(varImp[,"MeanDecreaseGini"],1))
+t2 <- t1[order(-t1$mmeanDecreaseGini, t1$varName),]
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseGini) ) 
+pI<- ggplot(sortData, aes( as.factor(varName), meanDecreaseGini))+
+  ggtitle("Variable importance that decreases purity")+
+  geom_point(colour="purple2", shape=18) +
+  coord_flip()
+
+
+## MDSplot
+### This does not come back
+MDSplot(classe.rf.model,as.factor(trCleanDf.wk$classe), k=2)
+
+
+
+
+
 
 

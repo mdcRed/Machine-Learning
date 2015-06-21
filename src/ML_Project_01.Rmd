@@ -1,7 +1,8 @@
+
 ---
 title: "Machine Learning Model Predicting How People Exercise"
 author: "My D. Coyne"
-date: "May 19, 2015"
+date: "June 21, 2015"
 output: 
   html_document:
     fig_caption: yes
@@ -16,11 +17,17 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='../Figs/',
 
 # Executive Summary
 
-To be added
+A large dataset that contains self-monitoring data from people's exercises, collected from self-movement devices is used to train a machine learning algorithm, specifically Random Forest.  After training, the model is used to predict test data.  The Random Forest algorithm perform extremely well--predict correctly 20 data points in the test dataset.  The algorithm can be quite slow in running.  The training dataset contains 19,622 data points, with 160 variables, which reduced to 53 variables after cleaning and preprocess.   
+
 
 # Abstract
 
+Training a machine learning algorithm, specifically Random Forest, with self-monitoring data from people's exercises.  Then predict by assigning classifiers to test data.   The paper also discuss the out of bag (OOB) error rates and identify other benefits of random forest offer, such as feature selection based on importance of data.  
+
 # Preprocess
+
+Data acquired from self movement devices, such as *Jawbone Up*, *Nike FuelBand*, and *Fitbit* allows one to monitor how much excercise one performs, however the question of "How well excercise is done" arises.  In an effort to answer this question, scientists have conducted an experiment by attaching 4 monitor devices to individuals and analyzed metric data given by these devices.  The individuals were given specific instructions as to how to perform their excercise (lifting dumbells); six different "classes" were designated as "A", "B","C","D",and "E".  The metrics and the given classe information were then paired together in a large Excel spreadsheet and made public for use.^1^
+
 
 ## Library Require
 
@@ -81,7 +88,7 @@ Examine the data in both training and testing dataset, the observations are:
 
 0.  All data points are numeric, except for the column labeled "classe", which contains "A", "B", "C", "D", "E"
 
-1.  Many columns contains *mostly* NA's; such variables should be removed as part of data cleaning, as the variables do not contribute to building of the model.  Apply is.na()
+1.  Many columns contains *mostly* NA's; such variables should be removed as part of data cleaning, as the variables do not contribute to building of the model.  Applying is.na() returns TRUE or FALSE if the data value is NA or not; TRUE and  FALSE is evaluated to 1 and 0, respectively.  Applying colMeans() to get the mean of a columnn.  When a column contains mostly NA's then the colMeans() will evaluate close to 1.00.   Use an arbitratry number 0.96 as a filter to elimimate the columns that have mostly NA's.
 
 ```{r, echo=TRUE}
 
@@ -156,9 +163,11 @@ write_prediction = function(x){
 write_prediction(pred);
 ```
 
-# Validation
+# Model Evaluation
 
-In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error; ^[2]^ instead **out of bag (OOB)** is used to get a running unbiased estimate of the classification error as trees are added to the forest.  Random forest is a classification algorithm that combines both _boostrapping_ and _random subspace method_.  Each tree is constructed using a different bootstrap sample from the original data.   About one-third of the cases are left out (*out of bag*) of the bootstrap sample and not used in the construction of the k-_th_ tree.  At the end of k-_th_ run, out-of-bag estimate for the generalization error is the error rate of the out-of-bag classifier.  Using OOB estimate removes the need for for set asside test set, or cross validation.^[3]^  
+
+In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error; ^[2]^ instead **out of bag (OOB)** is used to get a running unbiased estimate of the classification error as trees are added to the forest.  Random forest is a classification algorithm that combines both _boostrapping_ and _random subspace method_.  Each tree is constructed using a different bootstrap sample from the original data.   About one-third of the cases are left out (*out of bag*) of the bootstrap sample and not used in the construction of the k-_th_ tree.  At the end of k-_th_ run, out-of-bag estimate for the generalization error is the error rate of the out-of-bag classifier.  Using OOB estimate removes the need for for set asside test set, or cross validation.   The study of error estimates for bagged classifiers in Breiman[1996b]^3^, gives empirical evidence to show that the out-of-bag estimate is as accurate as using a test set of the same size as the training set. *Here, OOB will be used to address the out-of-sample errors classification.* 
+
 
 ## Estimate of Error of the Classifier and Confusion Matrix
 
@@ -168,13 +177,13 @@ classe.rf.model
 
 plot(classe.rf.model
      , log="y"
-     , main="Fitting training data with random forest (10 trees)")
+     , main="Out-of-Bag Errors when Fitting training data with random forest (10 trees)")
 legend("top", cex =0.5, legend=colnames(classe.rf.model$err.rate)
        , lty=c(1,2,3,4,5,6), col=c(1,2,3,4,5,6), horiz=T)
 
 ```
 
-Let's see if the error improved with more trees:
+Let's see if the OOB errors improved with more trees:
 
 ```{r, echo=TRUE}
 
@@ -187,7 +196,7 @@ classe.rf.model <- randomForest (as.factor(trCleanDf.wk$classe) ~ .
 
 plot(classe.rf.model
      ,log="y"
-     ,main="Fitting training data with random forest (1,000 trees)")
+     ,main="OOB Error when Fitting training data with random forest (1,000 trees)")
 
 legend("top", cex =0.5
        , legend=colnames(classe.rf.model$err.rate)
@@ -195,9 +204,36 @@ legend("top", cex =0.5
 
 ```
 
-From the above figure, after about 900 trees error rates for all classes are level out.   From next subsequent fitting, 900 trees will be used. 
+From the above figure, after about 900 trees error rates for all classes are level out.   For next subsequent fitting, 900 trees will be used. 
 
 ## Importance of Variables
+
+The Random Forest algorithm produces two additional pieces of information:
+
+1.  a measure of the importance of the predictor variables and 
+
+2.  a measure of the internal structure of the data (the proximity of different data points to one another).
+
+
+The random forest algorithm estimates the importance of a variable by looking at how much prediction error increases when (OOB) data for that variable is permuted while all others are left unchanged.
+
+There are two measures of importance: measure of how much **accuracy** that a predictor will influenec if it is removed from the prediction, and a measure of how much **impurity** that a node will incure if a variable is removed from the prediction.  Impurity is meassured by Gini index.   In the following section, the random classification will be calculated for 900 trees, and for each class A, B, C, D, E the mean decrease in accuracy measure of importance will be calculated and plot.  
+
+### Importance measurement by decreasing Accuracy
+
+
+The more the accuracy of the random forest decreases due to the exclusion of a single variable, the more important that variable is.    For example, notice the first three most important variables (dues to most lost in accuracy if they are removed from the predictors pool) for each class are quite different.   
+
+
+| importance   | 1st               	| 2nd               	| 3rd              	|
+|------------	|-------------------	|-------------------	|------------------	|
+| Class A    	| yaw_belt          	| magnet_dumbbell_z 	| roll_belt        	|
+| Class B    	| pitch_belt        	| roll_belt         	| yaw_belt         	|
+| Class C    	| magnet_dummbell_z 	| magnet_dumbell_y  	| roll_belt        	|
+| Class D    	| yaw_belt          	| roll_belt         	| magnet_dumbell_z 	|
+| Class E    	| roll_belt         	| magnet_dumbbell_z 	| pitch_belt        |
+
+
 
 ```{r, echo=TRUE}
 
@@ -267,31 +303,40 @@ pE
 
 ```
 
-## Partial importance
+### Importance measurement by decreasing purity
+
+The three variables roll_belt, yaw_belt, and pitch_forearm influence most in the purity of a node.  Each time a varialbe is used to split a node, the Gini coefficient of the child nodes are recalculated.  The Gini coefficient the measurement of homogenity, which is 0 (homogenous) to 1 (heterogeneous). Variables that result in nodes with higher purity have higher decrease in Gini coefficient.
+
 
 ```{r, echo=TRUE}
+varImp <- data.frame(importance(classe.rf.model, type=2))
+t1 <- data.frame(varName=rownames(varImp), meanDecreaseGini=round(varImp[,"MeanDecreaseGini"],1))
+sortData <- transform(t1, varName=reorder(varName, -meanDecreaseGini) ) 
+pI<- ggplot(sortData, aes( as.factor(varName), meanDecreaseGini))+
+  ggtitle("Variable importance that decreases purity")+
+  geom_point(colour="purple2", shape=18) +
+  coord_flip()
 
-#classe.rf.importance <- importance(classe.rf.model);
-#classe.rf.impvar  <- rownames(classe.rf.importance)[order(classe.rf.importance[, 1], decreasing=TRUE)]
-
-## codes does not end
-##op <- par(mfrow=c(2, 2))
-## for (i in seq_along(classe.rf.impvar)) {
-##for (i in 1:4) {
-##  partialPlot(x=classe.rf.model
-##              , pred.data= trCleanDf.wk
-##              , x.var=classe.rf.impvar[i]
-##              , which.class="A"
-##              , plot= TRUE
-##              , xlab=classe.rf.impvar[i]
-##              ,main=paste("Partial Dependence on", classe.rf.impvar[i], " for class A")
-##  )
-##}
-##par(op)
-
+pI
 
 ```
+
 # Conclusion
+
+Random Forest is used to for the classification model.  The model is built with 1,000 tree and the out-of-bag (OOB) error rate is quite low 0.28%.    The model predicts the test data with high accuracy.  
+
+
+ 
+```{r,echo=TRUE}
+
+pred <- predict (classe.rf.model, tsCleanDf.wk );
+
+print(pred)
+```
+
+
+Further study of the random forest, the importance of variables help in selecting important features. This also help in reducing the features, hence reducing the number of trees in shorting the execution time. 
+
 
 # References
 
